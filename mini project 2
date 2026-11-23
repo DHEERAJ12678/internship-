@@ -1,0 +1,414 @@
+# ==========================================
+# PERSONAL EXPENSE & BUDGET TRACKER
+# Mini Project 2 - Python Internship
+# ==========================================
+
+import json
+import csv
+import os
+from datetime import datetime
+
+
+DATA_FILE = "expenses.json"
+CSV_FILE = "expenses.csv"
+
+
+# ------------------------------------------
+# 1. LOAD DATA FROM JSON
+# ------------------------------------------
+
+def load_data():
+
+    if not os.path.exists(DATA_FILE):
+        return {
+            "expenses": [],
+            "budgets": {}
+        }
+
+    try:
+        with open(DATA_FILE, "r") as file:
+            data = json.load(file)
+
+            if not isinstance(data, dict):
+                raise ValueError("Invalid data format")
+
+            data.setdefault("expenses", [])
+            data.setdefault("budgets", {})
+
+            return data
+
+    except (json.JSONDecodeError, OSError, ValueError) as error:
+        print("Error loading data:", error)
+        return {
+            "expenses": [],
+            "budgets": {}
+        }
+
+
+# ------------------------------------------
+# 2. SAVE DATA INTO JSON
+# ------------------------------------------
+
+def save_data(data):
+
+    try:
+        with open(DATA_FILE, "w") as file:
+            json.dump(data, file, indent=4)
+
+        print("Data saved successfully!")
+
+    except OSError as error:
+        print("Error saving data:", error)
+
+
+# ------------------------------------------
+# 3. ACCEPT VALID AMOUNT
+# ------------------------------------------
+
+def get_amount():
+
+    while True:
+
+        try:
+            amount = float(input("Enter expense amount: Rs. "))
+
+            if amount > 0:
+                return amount
+
+            print("Amount must be greater than zero.")
+
+        except ValueError:
+            print("Invalid amount! Enter a number.")
+
+
+# ------------------------------------------
+# 4. ACCEPT VALID DATE
+# ------------------------------------------
+
+def get_date():
+
+    while True:
+
+        date_input = input(
+            "Enter date (YYYY-MM-DD), or press Enter for today: "
+        ).strip()
+
+        if date_input == "":
+            return datetime.today().strftime("%Y-%m-%d")
+
+        try:
+            date = datetime.strptime(
+                date_input, "%Y-%m-%d"
+            )
+
+            return date.strftime("%Y-%m-%d")
+
+        except ValueError:
+            print("Invalid date! Use YYYY-MM-DD.")
+
+
+# ------------------------------------------
+# 5. ADD EXPENSE
+# ------------------------------------------
+
+def add_expense(data):
+
+    print("\n========== ADD EXPENSE ==========")
+
+    amount = get_amount()
+
+    category = input(
+        "Enter category (Food/Travel/Education/etc.): "
+    ).strip()
+
+    if not category:
+        print("Category cannot be empty.")
+        return
+
+    description = input("Enter description: ").strip()
+
+    date = get_date()
+
+    expense = {
+        "amount": amount,
+        "category": category.title(),
+        "description": description,
+        "date": date
+    }
+
+    data["expenses"].append(expense)
+
+    save_data(data)
+
+    print("\nExpense added successfully!")
+
+    check_budget(data, date[:7])
+
+
+# ------------------------------------------
+# 6. SET MONTHLY BUDGET
+# ------------------------------------------
+
+def set_budget(data):
+
+    print("\n========== SET MONTHLY BUDGET ==========")
+
+    month = input(
+        "Enter month (YYYY-MM), or press Enter for current month: "
+    ).strip()
+
+    if month == "":
+        month = datetime.today().strftime("%Y-%m")
+
+    try:
+        datetime.strptime(month, "%Y-%m")
+    except ValueError:
+        print("Invalid month format!")
+        return
+
+    while True:
+
+        try:
+            budget = float(input("Enter monthly budget: Rs. "))
+
+            if budget > 0:
+                break
+
+            print("Budget must be greater than zero.")
+
+        except ValueError:
+            print("Please enter a valid number.")
+
+    data["budgets"][month] = budget
+
+    save_data(data)
+
+    print(f"Budget set for {month}: Rs. {budget:.2f}")
+
+    check_budget(data, month)
+
+
+# ------------------------------------------
+# 7. CHECK MONTHLY BUDGET
+# ------------------------------------------
+
+def check_budget(data, month):
+
+    budget = data["budgets"].get(month)
+
+    if budget is None:
+        return
+
+    total = sum(
+        expense["amount"]
+        for expense in data["expenses"]
+        if expense["date"].startswith(month)
+    )
+
+    print("\n========== BUDGET STATUS ==========")
+
+    print(f"Monthly Budget: Rs. {budget:.2f}")
+    print(f"Total Expense: Rs. {total:.2f}")
+
+    remaining = budget - total
+
+    if total > budget:
+
+        print("WARNING: Monthly budget exceeded!")
+        print(f"Exceeded by: Rs. {-remaining:.2f}")
+
+    elif total >= budget * 0.80:
+
+        print("ALERT: You have used 80% or more of your budget!")
+        print(f"Remaining: Rs. {remaining:.2f}")
+
+    else:
+
+        print("Budget is under control.")
+        print(f"Remaining: Rs. {remaining:.2f}")
+
+
+# ------------------------------------------
+# 8. DISPLAY ALL EXPENSES
+# ------------------------------------------
+
+def view_expenses(data):
+
+    print("\n========== ALL EXPENSES ==========")
+
+    expenses = data["expenses"]
+
+    if not expenses:
+        print("No expense records found.")
+        return
+
+    for number, expense in enumerate(expenses, start=1):
+
+        print(f"\nExpense {number}")
+
+        print("Date:", expense["date"])
+        print("Category:", expense["category"])
+        print("Description:", expense["description"])
+        print("Amount: Rs.", expense["amount"])
+
+
+# ------------------------------------------
+# 9. MONTHLY EXPENSE SUMMARY
+# ------------------------------------------
+
+def monthly_summary(data):
+
+    print("\n========== MONTHLY SUMMARY ==========")
+
+    month = input(
+        "Enter month (YYYY-MM), or press Enter for current month: "
+    ).strip()
+
+    if month == "":
+        month = datetime.today().strftime("%Y-%m")
+
+    try:
+        datetime.strptime(month, "%Y-%m")
+    except ValueError:
+        print("Invalid month format!")
+        return
+
+    monthly_expenses = [
+        expense
+        for expense in data["expenses"]
+        if expense["date"].startswith(month)
+    ]
+
+    if not monthly_expenses:
+        print("No expenses found for this month.")
+        check_budget(data, month)
+        return
+
+    total = sum(
+        expense["amount"]
+        for expense in monthly_expenses
+    )
+
+    print("\nMonth:", month)
+    print("Total Expenses: Rs.", round(total, 2))
+
+    # Category-wise expenditure
+    category_totals = {}
+
+    for expense in monthly_expenses:
+
+        category = expense["category"]
+
+        category_totals[category] = (
+            category_totals.get(category, 0)
+            + expense["amount"]
+        )
+
+    print("\nCategory-wise Summary:")
+
+    for category, amount in category_totals.items():
+
+        print(f"{category}: Rs. {amount:.2f}")
+
+    check_budget(data, month)
+
+
+# ------------------------------------------
+# 10. EXPORT DATA TO CSV
+# ------------------------------------------
+
+def export_csv(data):
+
+    print("\n========== EXPORT TO CSV ==========")
+
+    try:
+
+        with open(
+            CSV_FILE,
+            "w",
+            newline=""
+        ) as file:
+
+            fields = [
+                "date",
+                "category",
+                "description",
+                "amount"
+            ]
+
+            writer = csv.DictWriter(
+                file,
+                fieldnames=fields
+            )
+
+            writer.writeheader()
+
+            writer.writerows(data["expenses"])
+
+        print("Expenses exported successfully!")
+        print("File created:", CSV_FILE)
+
+    except OSError as error:
+
+        print("CSV export error:", error)
+
+
+# ------------------------------------------
+# 11. MAIN MENU
+# ------------------------------------------
+
+def main():
+
+    data = load_data()
+
+    while True:
+
+        print("\n====================================")
+        print("    PERSONAL EXPENSE & BUDGET TRACKER")
+        print("====================================")
+
+        print("1. Add Expense")
+        print("2. View All Expenses")
+        print("3. Set Monthly Budget")
+        print("4. Monthly Expense Summary")
+        print("5. Export Expenses to CSV")
+        print("6. Exit")
+
+        choice = input("\nEnter your choice (1-6): ").strip()
+
+        if choice == "1":
+
+            add_expense(data)
+
+        elif choice == "2":
+
+            view_expenses(data)
+
+        elif choice == "3":
+
+            set_budget(data)
+
+        elif choice == "4":
+
+            monthly_summary(data)
+
+        elif choice == "5":
+
+            export_csv(data)
+
+        elif choice == "6":
+
+            print("\nThank you for using Expense Tracker!")
+            break
+
+        else:
+
+            print("Invalid choice! Please select 1-6.")
+
+
+# ------------------------------------------
+# PROGRAM EXECUTION
+# ------------------------------------------
+
+if __name__ == "__main__":
+    main()
