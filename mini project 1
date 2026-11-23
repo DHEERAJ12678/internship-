@@ -1,0 +1,230 @@
+# ==========================================
+# STUDENT MARKS & GRADE ANALYZER
+# Mini Project 1 - Python Internship
+# ==========================================
+
+# Function to accept a valid positive integer
+def get_positive_integer(message):
+    while True:
+        try:
+            value = int(input(message))
+
+            if value > 0:
+                return value
+            else:
+                print("Please enter a number greater than zero.")
+
+        except ValueError:
+            print("Invalid input! Enter an integer.")
+
+
+# Function to accept student marks
+def get_marks(subject):
+    while True:
+        try:
+            marks = float(input(f"Enter marks in {subject} (0-100): "))
+
+            if 0 <= marks <= 100:
+                return marks
+            else:
+                print("Marks must be between 0 and 100.")
+
+        except ValueError:
+            print("Invalid input! Enter numerical marks.")
+
+
+# Function to calculate grade
+def calculate_grade(percentage, status):
+
+    if status == "FAIL":
+        return "F"
+
+    elif percentage >= 90:
+        return "A+"
+
+    elif percentage >= 80:
+        return "A"
+
+    elif percentage >= 70:
+        return "B"
+
+    elif percentage >= 60:
+        return "C"
+
+    elif percentage >= 40:
+        return "D"
+
+    else:
+        return "F"
+
+
+# Function to calculate student result
+def calculate_result(student, subjects):
+
+    marks = student["marks"]
+
+    total = sum(marks.values())
+    maximum = len(subjects) * 100
+
+    percentage = (total / maximum) * 100
+
+    # Passing marks = 40 in every subject
+    if all(mark >= 40 for mark in marks.values()):
+        status = "PASS"
+    else:
+        status = "FAIL"
+
+    grade = calculate_grade(percentage, status)
+
+    student["total"] = total
+    student["percentage"] = percentage
+    student["status"] = status
+    student["grade"] = grade
+
+
+# Function to calculate subject averages
+def calculate_subject_averages(students, subjects):
+
+    print("\n========== SUBJECT-WISE AVERAGES ==========")
+
+    for subject in subjects:
+
+        total = sum(
+            student["marks"][subject]
+            for student in students
+        )
+
+        average = total / len(students)
+
+        print(f"{subject}: {average:.2f}")
+
+
+# Function to display individual student results
+def display_results(students):
+
+    print("\n========== STUDENT RESULTS ==========")
+
+    for student in students:
+
+        print("\nStudent Name:", student["name"])
+        print("Total Marks:", student["total"])
+        print("Percentage:", round(student["percentage"], 2), "%")
+        print("Grade:", student["grade"])
+        print("Result:", student["status"])
+
+
+# Function to rank students
+def display_rankings(students):
+
+    print("\n========== STUDENT RANKINGS ==========")
+
+    ranked_students = sorted(
+        students,
+        key=lambda student: student["percentage"],
+        reverse=True
+    )
+
+    previous_percentage = None
+    rank = 0
+
+    print(f"{'Rank':<10}{'Name':<20}{'Percentage':<15}")
+
+    for position, student in enumerate(ranked_students, start=1):
+
+        percentage = student["percentage"]
+
+        if percentage != previous_percentage:
+            rank = position
+
+        print(
+            f"{rank:<10}"
+            f"{student['name']:<20}"
+            f"{percentage:.2f}%"
+        )
+
+        previous_percentage = percentage
+
+
+# ==========================================
+# MAIN PROGRAM
+# ==========================================
+
+print("======================================")
+print("     STUDENT MARKS & GRADE ANALYZER")
+print("======================================")
+
+# Number of subjects
+num_subjects = get_positive_integer(
+    "Enter number of subjects: "
+)
+
+subjects = []
+
+# Accept subject names
+for i in range(num_subjects):
+
+    while True:
+        subject = input(
+            f"Enter name of subject {i+1}: "
+        ).strip()
+
+        if not subject:
+            print("Subject name cannot be empty.")
+
+        elif subject.lower() in [s.lower() for s in subjects]:
+            print("Subject already exists. Enter another name.")
+
+        else:
+            subjects.append(subject)
+            break
+
+
+# Number of students
+num_students = get_positive_integer(
+    "\nEnter number of students: "
+)
+
+students = []
+
+# Accept student details
+for i in range(num_students):
+
+    print(f"\nEnter details of Student {i+1}")
+
+    while True:
+        name = input("Enter student name: ").strip()
+
+        if name:
+            break
+
+        print("Name cannot be empty.")
+
+    marks = {}
+
+    # Accept subject-wise marks
+    for subject in subjects:
+        marks[subject] = get_marks(subject)
+
+    student = {
+        "name": name,
+        "marks": marks
+    }
+
+    # Calculate result
+    calculate_result(student, subjects)
+
+    students.append(student)
+
+
+# Display all student results
+display_results(students)
+
+# Display rankings
+display_rankings(students)
+
+# Display subject averages
+calculate_subject_averages(students, subjects)
+
+print("\n======================================")
+print("       ANALYSIS COMPLETED")
+print("======================================")
