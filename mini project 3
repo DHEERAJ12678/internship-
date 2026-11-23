@@ -1,0 +1,342 @@
+# ==========================================
+# LIBRARY / INVENTORY MANAGEMENT SYSTEM
+# Mini Project 3 - Python Internship
+# ==========================================
+
+
+# ------------------------------------------
+# 1. PARENT CLASS
+# ------------------------------------------
+
+class LibraryItem:
+
+    def __init__(self, book_id, title):
+        self.book_id = book_id
+        self.title = title
+
+    def display_info(self):
+        print("Book ID:", self.book_id)
+        print("Title:", self.title)
+
+
+# ------------------------------------------
+# 2. CHILD CLASS (INHERITANCE)
+# ------------------------------------------
+
+class Book(LibraryItem):
+
+    def __init__(self, book_id, title, author, quantity):
+
+        super().__init__(book_id, title)
+
+        self.author = author
+
+        # Encapsulated attributes
+        self.__quantity = quantity
+        self.__issued = 0
+
+    # Available stock
+    @property
+    def available(self):
+        return self.__quantity - self.__issued
+
+    # Total stock
+    @property
+    def quantity(self):
+        return self.__quantity
+
+    # Issued stock
+    @property
+    def issued(self):
+        return self.__issued
+
+    # Issue a book
+    def issue(self):
+
+        if self.available > 0:
+            self.__issued += 1
+            return True
+
+        return False
+
+    # Return a book
+    def return_book(self):
+
+        if self.__issued > 0:
+            self.__issued -= 1
+            return True
+
+        return False
+
+    # Add more copies
+    def restock(self, quantity):
+
+        if quantity > 0:
+            self.__quantity += quantity
+            return True
+
+        return False
+
+    # Display book information
+    def display_info(self):
+
+        super().display_info()
+
+        print("Author:", self.author)
+        print("Total Copies:", self.__quantity)
+        print("Issued Copies:", self.__issued)
+        print("Available Copies:", self.available)
+
+
+# ------------------------------------------
+# 3. LIBRARY MANAGEMENT CLASS
+# ------------------------------------------
+
+class Library:
+
+    def __init__(self):
+
+        self.books = {}
+
+    # Add a new book
+    def add_book(self, book):
+
+        if book.book_id in self.books:
+
+            print("Book ID already exists!")
+            return
+
+        self.books[book.book_id] = book
+
+        print("Book added successfully!")
+
+    # Search book by ID or title
+    def search_book(self, search_value):
+
+        found = False
+
+        for book in self.books.values():
+
+            if (
+                book.book_id.lower() == search_value.lower()
+                or search_value.lower() in book.title.lower()
+            ):
+
+                print("\nBook Found:")
+                book.display_info()
+                found = True
+
+        if not found:
+            print("No matching book found.")
+
+    # Issue a book
+    def issue_book(self, book_id):
+
+        book = self.books.get(book_id)
+
+        if book is None:
+
+            print("Book not found!")
+            return
+
+        if book.issue():
+
+            print("Book issued successfully!")
+            print("Remaining copies:", book.available)
+
+        else:
+
+            print("Sorry! No copies available.")
+
+    # Return a book
+    def return_book(self, book_id):
+
+        book = self.books.get(book_id)
+
+        if book is None:
+
+            print("Book not found!")
+            return
+
+        if book.return_book():
+
+            print("Book returned successfully!")
+            print("Available copies:", book.available)
+
+        else:
+
+            print("Invalid return! No issued copy exists.")
+
+    # Restock books
+    def restock_book(self, book_id, quantity):
+
+        book = self.books.get(book_id)
+
+        if book is None:
+
+            print("Book not found!")
+            return
+
+        if book.restock(quantity):
+
+            print("Stock updated successfully!")
+            print("New total stock:", book.quantity)
+
+        else:
+
+            print("Quantity must be greater than zero.")
+
+    # Display all books
+    def display_books(self):
+
+        print("\n========== LIBRARY INVENTORY ==========")
+
+        if not self.books:
+
+            print("Library is empty.")
+            return
+
+        for book in self.books.values():
+
+            print("\n---------------------------")
+            book.display_info()
+
+
+# ------------------------------------------
+# 4. INPUT VALIDATION FUNCTIONS
+# ------------------------------------------
+
+def get_positive_integer(message):
+
+    while True:
+
+        try:
+
+            value = int(input(message))
+
+            if value > 0:
+                return value
+
+            print("Enter a number greater than zero.")
+
+        except ValueError:
+
+            print("Invalid input! Enter an integer.")
+
+
+def get_non_empty_input(message):
+
+    while True:
+
+        value = input(message).strip()
+
+        if value:
+            return value
+
+        print("This field cannot be empty.")
+
+
+# ------------------------------------------
+# 5. MAIN PROGRAM
+# ------------------------------------------
+
+def main():
+
+    library = Library()
+
+    while True:
+
+        print("\n================================")
+        print("   LIBRARY MANAGEMENT SYSTEM")
+        print("================================")
+
+        print("1. Add Book")
+        print("2. Search Book")
+        print("3. Issue Book")
+        print("4. Return Book")
+        print("5. Restock Book")
+        print("6. Display All Books")
+        print("7. Exit")
+
+        choice = input("\nEnter your choice (1-7): ").strip()
+
+        # Add book
+        if choice == "1":
+
+            print("\n========== ADD BOOK ==========")
+
+            book_id = get_non_empty_input("Enter Book ID: ")
+
+            title = get_non_empty_input("Enter Book Title: ")
+
+            author = get_non_empty_input("Enter Author Name: ")
+
+            quantity = get_positive_integer("Enter Quantity: ")
+
+            book = Book(book_id, title, author, quantity)
+
+            library.add_book(book)
+
+        # Search book
+        elif choice == "2":
+
+            search = get_non_empty_input(
+                "Enter Book ID or Title: "
+            )
+
+            library.search_book(search)
+
+        # Issue book
+        elif choice == "3":
+
+            book_id = get_non_empty_input(
+                "Enter Book ID to issue: "
+            )
+
+            library.issue_book(book_id)
+
+        # Return book
+        elif choice == "4":
+
+            book_id = get_non_empty_input(
+                "Enter Book ID to return: "
+            )
+
+            library.return_book(book_id)
+
+        # Restock book
+        elif choice == "5":
+
+            book_id = get_non_empty_input(
+                "Enter Book ID: "
+            )
+
+            quantity = get_positive_integer(
+                "Enter additional quantity: "
+            )
+
+            library.restock_book(book_id, quantity)
+
+        # Display inventory
+        elif choice == "6":
+
+            library.display_books()
+
+        # Exit
+        elif choice == "7":
+
+            print("\nThank you for using Library Management System!")
+            break
+
+        else:
+
+            print("Invalid choice! Select between 1 and 7.")
+
+
+# ------------------------------------------
+# PROGRAM EXECUTION
+# ------------------------------------------
+
+if __name__ == "__main__":
+
+    main()
