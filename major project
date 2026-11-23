@@ -1,0 +1,404 @@
+import argparse
+
+from loader import load_data
+
+from analytics import (
+    calculate_student_summary,
+    calculate_subject_summary,
+    calculate_overall_statistics
+)
+
+from visualizer import create_subject_chart
+from reporter import export_reports
+
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        description="Academic Performance Analytics System"
+    )
+
+    parser.add_argument(
+        "--input",
+        default="student_data.csv",
+        help="Path of student CSV dataset"
+    )
+
+    parser.add_argument(
+        "--output",
+        default="output",
+        help="Folder for generated reports"
+    )
+
+    args = parser.parse_args()
+
+    # Step 1: Load student data
+    print("\nLoading student data...")
+
+    df = load_data(args.input)
+
+    if df is None:
+        return
+
+    print("Data loaded successfully!")
+
+    # Step 2: Student analysis
+    print("\nCalculating student performance...")
+
+    student_summary = calculate_student_summary(df)
+
+    # Step 3: Subject analysis
+    subject_summary = calculate_subject_summary(df)
+
+    # Step 4: Overall statistics
+    statistics = calculate_overall_statistics(df)
+
+    # Step 5: Display results
+    print("\nSTUDENT PERFORMANCE SUMMARY")
+    print(student_summary.to_string(index=False))
+
+    print("\nSUBJECT PERFORMANCE SUMMARY")
+    print(subject_summary.to_string(index=False))
+
+    print("\nOVERALL STATISTICS")
+
+    for key, value in statistics.items():
+        print(f"{key}: {value}")
+
+    # Step 6: Generate graph
+    print("\nGenerating chart...")
+
+    create_subject_chart(
+        subject_summary,
+        args.output
+    )
+
+    # Step 7: Export reports
+    print("\nExporting reports...")
+
+    export_reports(
+        student_summary,
+        subject_summary,
+        statistics,
+        args.output
+    )
+
+    print("\nPROJECT COMPLETED SUCCESSFULLY!")
+
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+
+    import os
+import sqlite3
+
+
+def export_reports(
+    student_summary,
+    subject_summary,
+    statistics,
+    output_folder
+):
+
+    os.makedirs(output_folder, exist_ok=True)
+
+    # Save student report
+    student_summary.to_csv(
+        os.path.join(output_folder, "student_report.csv"),
+        index=False
+    )
+
+    # Save subject report
+    subject_summary.to_csv(
+        os.path.join(output_folder, "subject_report.csv"),
+        index=False
+    )
+
+    # Save overall statistics
+    with open(
+        os.path.join(output_folder, "overall_report.txt"),
+        "w"
+    ) as file:
+
+        file.write("ACADEMIC PERFORMANCE REPORT\n")
+        file.write("=" * 35 + "\n\n")
+
+        for key, value in statistics.items():
+            file.write(f"{key}: {value}\n")
+
+        file.write("\nSUBJECT-WISE DIAGNOSTIC SUMMARY\n")
+        file.write("-" * 35 + "\n")
+
+        for _, row in subject_summary.iterrows():
+            file.write(
+                f"{row['subject']}: "
+                f"Average = {row['latest_average']}, "
+                f"Gain = {row['average_gain']}, "
+                f"Status = {row['diagnosis']}\n"
+            )
+
+    # Save summaries in SQLite database
+    database_path = os.path.join(
+        output_folder,
+        "academic_performance.db"
+    )
+
+    connection = sqlite3.connect(database_path)
+
+    try:
+        student_summary.to_sql(
+            "student_summary",
+            connection,
+            if_exists="replace",
+            index=False
+        )
+
+        subject_summary.to_sql(
+            "subject_summary",
+            connection,
+            if_exists="replace",
+            index=False
+        )
+
+    finally:
+        connection.close()
+
+    print("Reports and database saved successfully.")
+
+
+
+
+
+
+    import matplotlib.pyplot as plt
+import os
+
+
+def create_subject_chart(subject_summary, output_folder):
+
+    os.makedirs(output_folder, exist_ok=True)
+
+    subjects = subject_summary["subject"]
+    baseline = subject_summary["baseline_average"]
+    latest = subject_summary["latest_average"]
+
+    x = range(len(subjects))
+    width = 0.35
+
+    plt.figure(figsize=(10, 6))
+
+    plt.bar(
+        [i - width / 2 for i in x],
+        baseline,
+        width,
+        label="Baseline Average"
+    )
+
+    plt.bar(
+        [i + width / 2 for i in x],
+        latest,
+        width,
+        label="Latest Average"
+    )
+
+    plt.xlabel("Subjects")
+    plt.ylabel("Average Marks")
+    plt.title("Subject-wise Performance Comparison")
+
+    plt.xticks(list(x), subjects)
+    plt.ylim(0, 100)
+    plt.legend()
+    plt.grid(axis="y", linestyle="--", alpha=0.4)
+
+    plt.tight_layout()
+
+    chart_path = os.path.join(
+        output_folder,
+        "subject_performance.png"
+    )
+
+    plt.savefig(chart_path)
+    plt.close()
+
+    print("Chart saved:", chart_path)
+
+
+
+
+
+
+
+    import pandas as pd
+
+REQUIRED_COLUMNS = [
+    "student_name",
+    "subject",
+    "baseline_score",
+    "latest_score"
+]
+
+
+def load_data(file_path):
+    try:
+        df = pd.read_csv(file_path)
+
+        # Check required columns
+        for column in REQUIRED_COLUMNS:
+            if column not in df.columns:
+                raise ValueError(
+                    f"Missing required column: {column}"
+                )
+
+        # Remove extra spaces
+        df["student_name"] = df["student_name"].astype(str).str.strip()
+        df["subject"] = df["subject"].astype(str).str.strip()
+
+        # Convert scores into numbers
+        df["baseline_score"] = pd.to_numeric(
+            df["baseline_score"], errors="coerce"
+        )
+
+        df["latest_score"] = pd.to_numeric(
+            df["latest_score"], errors="coerce"
+        )
+
+        # Remove incomplete records
+        df = df.dropna(subset=REQUIRED_COLUMNS)
+
+        # Keep scores between 0 and 100
+        valid_scores = (
+            df["baseline_score"].between(0, 100)
+            & df["latest_score"].between(0, 100)
+        )
+
+        df = df[valid_scores]
+
+        if df.empty:
+            raise ValueError("No valid student records found.")
+
+        return df
+
+    except FileNotFoundError:
+        print("Error: CSV file not found.")
+        return None
+
+    except Exception as error:
+        print("Error while loading data:", error)
+        return None
+
+
+
+
+
+
+
+        import pandas as pd
+import numpy as np
+
+
+def calculate_student_summary(df):
+
+    summary = df.groupby("student_name").agg(
+        baseline_average=("baseline_score", "mean"),
+        latest_average=("latest_score", "mean"),
+        minimum_score=("latest_score", "min"),
+        maximum_score=("latest_score", "max"),
+        median_score=("latest_score", "median"),
+        variance=("latest_score", "var"),
+        standard_deviation=("latest_score", "std")
+    ).reset_index()
+
+    summary["score_gain"] = (
+        summary["latest_average"]
+        - summary["baseline_average"]
+    )
+
+    summary["percentage_gain"] = np.where(
+        summary["baseline_average"] != 0,
+        (summary["score_gain"] /
+         summary["baseline_average"]) * 100,
+        0
+    )
+
+    summary["performance"] = np.where(
+        summary["latest_average"] >= 75,
+        "Good",
+        np.where(
+            summary["latest_average"] >= 50,
+            "Average",
+            "Needs Improvement"
+        )
+    )
+
+    return summary.round(2)
+
+
+def calculate_subject_summary(df):
+
+    summary = df.groupby("subject").agg(
+        baseline_average=("baseline_score", "mean"),
+        latest_average=("latest_score", "mean"),
+        median_score=("latest_score", "median"),
+        variance=("latest_score", "var"),
+        standard_deviation=("latest_score", "std"),
+        minimum_score=("latest_score", "min"),
+        maximum_score=("latest_score", "max")
+    ).reset_index()
+
+    summary["average_gain"] = (
+        summary["latest_average"]
+        - summary["baseline_average"]
+    )
+
+    summary["diagnosis"] = np.where(
+        summary["latest_average"] < 50,
+        "Needs Attention",
+        "Satisfactory"
+    )
+
+    return summary.round(2)
+
+
+def calculate_overall_statistics(df):
+
+    scores = df["latest_score"]
+
+    statistics = {
+        "Mean": round(scores.mean(), 2),
+        "Median": round(scores.median(), 2),
+        "Minimum": round(scores.min(), 2),
+        "Maximum": round(scores.max(), 2),
+        "Variance": round(scores.var(), 2),
+        "Standard Deviation": round(scores.std(), 2)
+    }
+
+    return statistics
+
+
+
+
+student_name,subject,baseline_score,latest_score
+Aarav,Mathematics,55,72
+Aarav,Statistics,48,65
+Aarav,Programming,70,82
+Riya,Mathematics,62,78
+Riya,Statistics,58,74
+Riya,Programming,75,88
+Kabir,Mathematics,45,60
+Kabir,Statistics,40,55
+Kabir,Programming,65,70
+Neha,Mathematics,80,90
+Neha,Statistics,72,85
+Neha,Programming,85,92
+
+
+
+
+
+
+
+    
